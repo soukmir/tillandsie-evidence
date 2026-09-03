@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#17624E">
+<title>Evidence tilandsií</title>
+<style>
+:root{
+  --paper:#F5F4F0; --surface:#FFFFFF; --ink:#17201E; --ink-soft:#5F6A66;
+  --line:#DAD8D1; --line-strong:#BFBCB2; --accent:#17624E; --accent-ink:#FFFFFF;
+  --field:#ECEAE4; --field-hi:#FFFFFF;
+  --queue:#8A6A16; --danger:#96412A; --shadow:0 1px 0 rgba(23,32,30,.06);
+}
+:root:not([data-theme="light"]){
+  @media (prefers-color-scheme: dark){
+    --paper:#111413; --surface:#1A1E1C; --ink:#E9EBE7; --ink-soft:#98A29E;
+    --line:#2C3330; --line-strong:#3D4642; --accent:#3F9F81; --accent-ink:#0C1210;
+    --field:#171B19; --field-hi:#2A312E;
+    --queue:#D6B355; --danger:#D98267; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111413; --surface:#1A1E1C; --ink:#E9EBE7; --ink-soft:#98A29E;
+  --line:#2C3330; --line-strong:#3D4642; --accent:#3F9F81; --accent-ink:#0C1210;
+  --field:#171B19; --field-hi:#2A312E;
+  --queue:#D6B355; --danger:#D98267; --shadow:none;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px 120px}
+.hidden{display:none !important}
+
+.bar{position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:10px 0 9px}
+.code{font-variant-numeric:tabular-nums;font-weight:600;font-size:17px}
+.bar .sep{flex:1}
+.pill{font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums;
+  border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface)}
+.pill.queued{color:var(--queue);border-color:var(--queue)}
+.iconbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;cursor:pointer;padding:0}
+.iconbtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.7}
+
+.shot{display:block;width:100%;aspect-ratio:4/3;margin-top:14px;
+  border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);
+  color:var(--ink);cursor:pointer;overflow:hidden;position:relative;padding:0;font:inherit}
+.shot .center{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px}
+.shot svg{width:52px;height:52px;stroke:var(--accent);fill:none;stroke-width:1.4}
+.shot .label{font-size:17px;font-weight:600}
+.shot .hint{font-size:13.5px;color:var(--ink-soft);max-width:32ch;text-align:center;line-height:1.35}
+.shot img{width:100%;height:100%;object-fit:cover;display:block}
+
+.strip{display:flex;gap:8px;margin-top:8px}
+.tile{position:relative;width:60px;height:46px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--line-strong);background:var(--surface);cursor:pointer;padding:0;flex:none}
+.tile img{width:100%;height:100%;object-fit:cover;display:block}
+.tile.active{outline:2px solid var(--accent);outline-offset:-2px}
+.tile .x{position:absolute;top:0;right:0;width:20px;height:20px;background:rgba(10,14,13,.72);
+  color:#fff;font-size:13px;line-height:20px;text-align:center;border-bottom-left-radius:7px}
+.tile.add{display:grid;place-items:center;color:var(--ink-soft);font-size:22px;border-style:dashed}
+
+.form{margin-top:16px;display:grid;gap:11px}
+.row{display:grid;gap:5px}
+.row>label{font-size:13.5px;color:var(--ink-soft)}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--field);
+  border:1px solid var(--line-strong);border-radius:10px;padding:12px;min-height:50px;box-shadow:var(--shadow)}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+input.hero{background:var(--field-hi);border-width:2px;border-color:var(--ink-soft);
+  font-size:17px;font-weight:600;min-height:56px}
+.check{display:flex;align-items:center;gap:11px;padding:12px;
+  border:1px solid var(--line-strong);border-radius:10px;background:var(--field);
+  cursor:pointer;font-size:15.5px;min-height:50px}
+.check input{width:22px;height:22px;min-height:0;margin:0;padding:0;flex:none;accent-color:var(--accent)}
+.num{font-variant-numeric:tabular-nums}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.pair.solo{grid-template-columns:1fr}
+#kindPair{grid-template-columns:112px 1fr}
+#kindPair.solo{grid-template-columns:112px}
+input.fixed{background:transparent;border-style:dashed;color:var(--ink-soft);
+  font-size:15px;padding:12px 9px;cursor:pointer}
+.trio{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.trio input{padding:12px 8px;font-size:15px}
+
+.acwrap{position:relative}
+.aclist{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:15;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:10px;
+  max-height:220px;overflow-y:auto;box-shadow:0 6px 18px rgba(0,0,0,.16);}
+.aclist button{display:block;width:100%;text-align:left;font:inherit;font-size:15px;
+  background:transparent;border:none;color:var(--ink);padding:11px 13px;cursor:pointer;min-height:0}
+.aclist button+button{border-top:1px solid var(--line)}
+.aclist button mark{background:transparent;color:var(--accent);font-weight:700}
+.aclist .none{padding:11px 13px;color:var(--ink-soft);font-size:14px}
+
+.labelrow{display:flex;align-items:center;gap:9px;min-height:22px}
+.labelrow label{font-size:13.5px;color:var(--ink-soft)}
+.seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;overflow:hidden;background:var(--surface)}
+.seg button{font:inherit;font-size:12.5px;padding:3px 11px;border:none;background:transparent;
+  color:var(--ink-soft);cursor:pointer;min-height:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--paper);
+  border-top:1px solid var(--line);padding:11px 14px calc(11px + env(safe-area-inset-bottom))}
+.actions .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:9px}
+button.primary{background:var(--accent);color:var(--accent-ink);border:none;font:inherit;
+  font-weight:650;font-size:17px;border-radius:12px;padding:15px 16px;cursor:pointer}
+button.secondary{background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);
+  font:inherit;font-size:15px;border-radius:12px;padding:15px;cursor:pointer}
+button.wipe{color:var(--danger);border-color:var(--line-strong);padding:15px 17px}
+
+.panel{margin-top:16px}
+.panel h2{font-size:19px;margin:0 0 4px;font-weight:650}
+.panel p.note{margin:0 0 16px;color:var(--ink-soft);font-size:14px;max-width:60ch}
+.rec{display:grid;grid-template-columns:62px 1fr auto;gap:12px;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--line)}
+.rec img{width:62px;height:47px;object-fit:cover;border-radius:7px;background:var(--line)}
+.rec .name{font-size:15.5px;line-height:1.3}
+.rec .meta{font-size:13px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.rec .qty{font-variant-numeric:tabular-nums;font-size:15px;text-align:right}
+.empty{color:var(--ink-soft);font-size:15px;padding:26px 0;line-height:1.5}
+.danger{color:var(--danger);border-color:var(--danger)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(86px + env(safe-area-inset-bottom));z-index:40;background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:999px;font-size:14.5px;opacity:0;transition:opacity .18s;pointer-events:none}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion: reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bar">
+    <span class="code" id="nextCode">TIL-0001</span>
+    <span class="sep"></span>
+    <span class="pill" id="countPill">0 záznamů</span>
+    <span class="pill queued hidden" id="syncPill"></span>
+    <button class="iconbtn" id="btnList" aria-label="Seznam záznamů">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg></button>
+    <button class="iconbtn" id="btnSettings" aria-label="Nastavení">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><circle cx="12" cy="12" r="7.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.35 5.35l1.56 1.56M17.09 17.09l1.56 1.56M18.65 5.35l-1.56 1.56M6.91 17.09l-1.56 1.56" stroke-linecap="round"/></svg></button>
+  </div>
+
+  <section id="viewCapture">
+    <input type="file" accept="image/*" capture="environment" id="fileInput" class="hidden">
+
+    <button class="shot" id="shotBtn">
+      <div class="center" id="shotEmpty">
+        <svg viewBox="0 0 24 24"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.9h6.2L15.8 6h2.7A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/><circle cx="12" cy="12.3" r="3.7"/></svg>
+        <span class="label">Vyfotit rostlinu</span>
+        <span class="hint">Otevře fotoaparát telefonu</span>
+      </div>
+      <img id="shotImg" class="hidden" alt="">
+    </button>
+    <div class="strip hidden" id="strip"></div>
+
+    <div class="form">
+      <div class="labelrow">
+        <span class="seg">
+          <button type="button" id="segSpecies" class="on">Druh</button>
+          <button type="button" id="segHybrid">Hybrid</button>
+        </span>
+      </div>
+
+      <div class="pair" id="kindPair">
+        <div class="row">
+          <label for="fGenus">Rod</label>
+          <input id="fGenus" class="fixed" readonly title="Rod se mění v nastavení">
+        </div>
+        <div class="row" id="speciesCell">
+          <label for="fSpecies">Druh</label>
+          <div class="acwrap">
+            <input id="fSpecies" class="hero" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="row hidden" id="hybridRow">
+        <label for="fH1">Kříženci</label>
+        <div class="trio">
+          <div class="acwrap"><input id="fH1" placeholder="1." autocomplete="off"></div>
+          <div class="acwrap"><input id="fH2" placeholder="2." autocomplete="off"></div>
+          <div class="acwrap"><input id="fH3" placeholder="3." autocomplete="off"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <label for="fVariety">Varieta</label>
+        <input id="fVariety" autocomplete="off">
+      </div>
+
+      <div class="pair">
+        <div class="row">
+          <label for="fPrice">Cena za kus</label>
+          <input id="fPrice" class="num" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="row">
+          <label for="fCount">Počet kusů</label>
+          <input id="fCount" class="num" type="text" inputmode="numeric" value="1" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="row">
+        <label for="fCountry">Země</label>
+        <input id="fCountry" list="dlCountry" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <label for="fInfo">Info</label>
+        <textarea id="fInfo"></textarea>
+      </div>
+
+      <label class="check" for="fFlower">
+        <input type="checkbox" id="fFlower">
+        <span>Na některé fotce je květ</span>
+      </label>
+    </div>
+  </section>
+
+  <section id="viewList" class="panel hidden">
+    <h2>Uložené záznamy</h2>
+    <p class="note">Vše je zatím jen v tomto telefonu. Odesílání na Google Drive přidáme v dalším kroku.</p>
+    <div id="recList"></div>
+  </section>
+
+  <section id="viewSettings" class="panel hidden">
+    <h2>Nastavení</h2>
+    <p class="note">Nastavíš jednou a při focení už do toho nelezeš.</p>
+    <div class="form">
+      <div class="row">
+        <label for="sPhotographer">Fotograf</label>
+        <input id="sPhotographer" placeholder="Jan Novák" autocomplete="off">
+      </div>
+      <div class="row">
+        <label for="sMode">Účel evidence</label>
+        <select id="sMode">
+          <option value="privatni">Privátní sbírka</option>
+          <option value="prodej">Prodej</option>
+        </select>
+      </div>
+      <div class="pair">
+        <div class="row">
+          <label for="sGenus">Výchozí rod</label>
+          <input id="sGenus" list="dlGenus" autocomplete="off">
+        </div>
+        <div class="row">
+          <label for="sCountry">Výchozí země</label>
+          <input id="sCountry" list="dlCountry" autocomplete="off">
+        </div>
+      </div>
+      <div class="pair">
+        <div class="row">
+          <label for="sDevice">Číslo telefonu</label>
+          <input id="sDevice" class="fixed" readonly title="Přiděluje se automaticky">
+        </div>
+        <div class="row">
+          <label for="sQuality">Velikost fotek</label>
+          <select id="sQuality">
+            <option value="0">Originál</option>
+            <option value="3">Do 3 MB</option>
+            <option value="2">Do 2 MB</option>
+            <option value="1.5">Do 1,5 MB</option>
+          </select>
+        </div>
+      </div>
+      <p class="note" id="storageNote" style="margin-top:6px"></p>
+      <button class="secondary" id="btnCopyCsv">Zkopírovat tabulku jako CSV</button>
+      <button class="secondary danger" id="btnWipe">Smazat všechna data</button>
+    </div>
+  </section>
+</div>
+
+<div class="actions" id="actionBar">
+  <div class="inner">
+    <button class="secondary wipe" id="btnDiscard" aria-label="Smazat rozepsaný záznam">Smazat</button>
+    <button class="primary" id="btnSave">Uložit a fotit dál</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<datalist id="dlGenus"></datalist>
+<datalist id="dlCountry"></datalist>
+
+<script>
+/* ===================================================================
+   Evidence tilandsií — verze 2
+   Lokální ukládání do IndexedDB. Funguje offline.
+   =================================================================== */
+
+const SPECIES = ["abdita","achyrostachys","acostae","acostasolisii","aeranthos","aguascalientensis","aizoides","albertiana","albida","alfredo-laui","altomayoensis","alvareziae","amicorum","ampla","andicola","andreana","andreettae","andrieuxii","appenii","araujei","arequitae","argentea","argentina","arhiza","arpocalyx","arroyoensis","asplundii","atroviolacea","atroviridipetala","australis","azuayensis","baileyi","balbisiana","baliophylla","balsasensis","bandensis","barbeyana","barborkae","barclayana","barfussii","barracoensis","barrosoae","barthlottii","bartramii","bella","belloensis","benthamiana","bergeri","x bergiana","bermejoensis","beutelspacheri","biflora","boliviensis","borealis","botterii","bourgaei","brachycaulos","brachyphylla","bradeana","brealitoensis","brenneri","brevilingua","bryoides","buchlohii","bulbosa","burlemarxii","buseri","butzii","caballosensis","cacticola","caerulea","cajamarcensis","calcicola","califanii","caliginosa","callichroma","calocephala","calothyrsus","caloura","candelifera","canescens","capillaris","capistranoensis","capitata","caput-medusae","cardenasii","carlsoniae","carminea","carrilloi","castellanii","cathcartii","caulescens","cauligera","cees-goudae","celata","cereicola","cerosa","chapalillaensis","chapeuensis","chartacea","chiapensis","chicoasena","chiletensis","chlorophylla","chontalensis","churinensis","chusgonensis","circinnatoides","clavigera","coalcomanensis","cochabambae","cocoensis","coinaensis","colganii","colorata","comarapaensis","comitanensis","complanata","compressa","concolor","confertiflora","confinis","copalaensis","copanensis","x correalei","cossonii","cotagaitensis","cretacea","crista-gallii","crocata","cryptantha","cryptopoda","cuencaensis","curvispica","cyanea","dasyliriifolia","deflexa","delicata","demissa","deppeana","diaguitensis","didisticha","diguetii","disticha","divaricata","dodsonii","x dorotheae","dugesii","dura","durangensis","duratii","x duvalii","dyeriana","edithae","ehlersiana","eistetteri","elongata","elusiva","elvirae-grossiae","erecta","erici","erubescens","espinosae","esseriana","exserta","extensa","fasciculata","fendleri","ferrisiana","ferreyrae","festucoides","filifolia","flabellata","flagellata","flavobracteata","flexuosa","floribunda","x floridana","foliosa","fosteri","fresnilloensis","friesii","fuchsii","funckiana","funebris","gardneri","geminiflora","gerdae","gilliesii","glabrior","gladioliflora","glauca","globosa","graebeneri","grandis","grandispica","graomogolensis","grazielae","grossispicata","guatemalensis","x guelzii","guenther-nolleri","guerreroensis","gutteana","gymnobotrya","hamaleana","hammeri","harmsiana","harrisii","heliconioides","helmutii","hernandezii","heterandra","heteromorpha","heterophylla","heubergeri","hildae","hintoniana","hiroi","hirta","hitchcockiana","hofackeri","hondurensis","x horstii","hotteana","hromadnikiana","huamelulaensis","huarazensis","hubertiana","humilis","iglari","ignesiae","imperialis","incarnata","inflata","inopinata","intermedia","ionantha","itaubensis","ixioides","izabalensis","jaliscomonticola","jarmilae","jequiensis","jonesii","jucunda","juerg-rutschmannii","juncea","kalmbacheri","kammii","karwinskyana","kauffmannii","kautskyi","kegeliana","t/v kentii","kirchhoffiana","kirschnekii","klausii","koehresiana","kolbii","krahnii","kretzii","krukoffiana","kruseana","kuehhasii","kurt-horstii","lajensis","lampropoda","latifolia","laui","lautneri","laxissima","leiboldiana","lenca","leonamiana","lepidosepala","leucolepis","limbata","limonensis","lindeniana","lindenii","linearis","x lineatispica","lithophila","loliacea","lorentziana","lotteae","lucida","lydiae","lymanii","macbrideana","macdougallii","macvaughii","magnispica","magnusiana","makoyana","mallemontii","malyi","malzinei","mandonii","marabascoensis","marconae","marnier-lapostolle","matudae","mauryana","mazatlanensis","melanocrater","mereliana","meridionalis","milagrensis","mima","minasgeraisensis","minutiflora","mirabilis","mitlaensis","mollis","monodelpha","montana","mooreana","moraisensis nyp","moronesensis","muhriae","multicaulis","myosura","myriantha","nana","narthecioides","nayeliana","nervata","neglecta","x nidus","nizandaensis","nolleriana","novakii","nuptialis","occulta","oerstediana","olmosana","organensis","orogenes","oropezana","oroyensis","ortgiesiana","ovatispicata","pacifica","paleacea","pamelae","paraensis","paraisoensis","pardoi","parryi","(racinaea) parviflora","parvispica","patula","paucifolia","pedicellata","peiranoi","penduliscapa","peruviana","peruvian nova","pfeufferi","piauiensis","plagiotropica","platyrhachis","plumosa","pohliana","polita","polystachia","polzii","ponderosa","porongoensis","porphyrocraspeda","porvenirensis","praschekii","pretiosa","pringlei","prodigiosa","prolata","pruinosa","pseudobaileyi","pseudocardenasii","pseudo-floribunda","pseudomacbrideana","pseudomicans","pseudooaxacana","pseudosetacea","pucaraensis","pueblensis","pulchella","punctulata","purpurea","pyramidata","queroensis","raackii","ramellae","rangelensis see trelawniensis","rauhii","rauschii","rectangula","x rectifolia","recurvifolia","recurvispica","reducta","reichenbachii","religiosa","remota","retrorsa","reuteri","reversa","rhodocephala","rhomboidea","riohondoensis","rodrigueziana","roezlii","roland-gosselinii","romeroi","(racinaea) ropalocarpa","rosacea","roseiflora","roseoscapa","rothii","rotundata","rubella","rubia","rubrispica","rubroviolacea","rusbyi","sacabamba","sagasteguii","salmonea","samaipatensis","santiagoensis","santosiae","le. scaligera","scaposa","schatzlii","schiedeana","schreiteri","schusteri","secunda","secundifolia","seideliana","seleriana","setacea","sierrajuarezensis","simulata","x smalliana","socialis","somnians","sphaerocephala","x spinnleriana","spiralipetala","sprengeliana","standleyi","stellifera","stoltenii","straminea","streptocarpa","streptophylla","stricta","nigra","subsecundifolia","subteres","sucrei","suesillaei","supermexicana","tafiensis","takizawae","taxcoensis","tecpanensis","tectorum","teloloapanensis","tenebra","tenuifolia","tequendamae","teres","thiekenii","thyrsigera","tillii","tomasellii","tomekii","tomellinensis","toropiensis","tortilis","trauneri","trelawniensis","tricholepis","tricolor","trigalensis","triglochinoides","truncata","turquinensis","ulrici","umbellata","uruguayensis","usneoides","utriculata","variabilis","velickiana","velutina","ventanaensis","venusta","verapazana","vernicosa","vicentina","violacea","violaceiflora","virescens","viridiflora","wagneriana","walter-richteri","walteri","weberi","welzii","werdermannii","werneriana","x wilinskii","winkleri","x wisdomiana","wuelfinghoffii","xerographica","xiphioides","yuncharaensis","yunckeri","yutaninoensis","zacapanensis","zacualpanensis","zaragozaensis","zecheri","zizkae","zoquensis"];
+const GENERA = ["Tillandsia","Vriesea","Guzmania","Racinaea","Werauhia","Catopsis"];
+const COUNTRIES = ["Mexiko","Guatemala","Honduras","Salvador","Nikaragua","Kostarika","Panama","Kolumbie","Ekvádor","Peru","Bolívie","Brazílie","Argentina","Uruguay","Paraguay","Venezuela","USA","Kuba","Německo","Nizozemsko","Česko","Neznámý"];
+const MAX_PHOTOS = 3;
+
+/* ---------------- napojení na Google ---------------- */
+const CONFIG = {
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzwF9HNp4mOWVsON94WOJ6ez-hVAXUNP-dweuBtFxTyK7gQ9yi9NWqZBDmxVQlM5NUtEA/exec",
+  SECRET: "489edf5bc8d44c3fb3f8"
+};
+function postToScript(payload){
+  return fetch(CONFIG.SCRIPT_URL, { method:"POST", body: JSON.stringify(payload) })
+    .then(r => r.json());
+}
+function blobToDataURL(blob){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+/* ---------------- úložiště ---------------- */
+let db;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open("tilandsie", 1);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains("records")) d.createObjectStore("records",{keyPath:"id"});
+      if(!d.objectStoreNames.contains("photos"))  d.createObjectStore("photos",{keyPath:"name"});
+    };
+    r.onsuccess = ()=>res(r.result);
+    r.onerror   = ()=>rej(r.error);
+  });
+}
+const tx = (s,m)=>db.transaction(s,m).objectStore(s);
+const put = (s,v)=>new Promise((res,rej)=>{const r=tx(s,"readwrite").put(v);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});
+const getAll = s=>new Promise((res,rej)=>{const r=tx(s,"readonly").getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error);});
+const getOne = (s,k)=>new Promise(res=>{const r=tx(s,"readonly").get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>res(null);});
+const clearStore = s=>new Promise((res,rej)=>{const r=tx(s,"readwrite").clear();r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});
+
+/* ---------------- nastavení ---------------- */
+const DEFAULTS = {photographer:"",mode:"privatni",genus:"Tillandsia",country:"",device:0,deviceConfirmed:false,quality:"3",counter:1};
+let S = {...DEFAULTS};
+function loadSettings(){
+  try{ const raw = localStorage.getItem("tilandsie.settings"); if(raw) S = {...DEFAULTS,...JSON.parse(raw)}; }
+  catch(e){ S = {...DEFAULTS}; }
+}
+function saveSettings(){
+  try{ localStorage.setItem("tilandsie.settings", JSON.stringify(S)); }
+  catch(e){ toast("Nastavení se nepodařilo uložit"); }
+}
+
+/* ---------------- hledání druhů (substring, kdekoliv v názvu) ---------------- */
+const MAX_SUGGEST = 8;
+function attachSpeciesSearch(inputId){
+  const input = $(inputId);
+  const wrap = input.parentElement;
+  const box = document.createElement("div");
+  box.className = "aclist hidden";
+  wrap.appendChild(box);
+
+  function close(){ box.classList.add("hidden"); box.innerHTML=""; }
+  function highlight(name, q){
+    const i = name.indexOf(q);
+    if(i<0 || !q) return name;
+    return name.slice(0,i) + "<mark>" + name.slice(i,i+q.length) + "</mark>" + name.slice(i+q.length);
+  }
+  function open(){
+    const q = input.value.trim().toLowerCase();
+    if(!q){ close(); return; }
+    const hits = SPECIES.filter(s => s.includes(q)).slice(0, MAX_SUGGEST);
+    if(!hits.length){
+      box.innerHTML = '<div class="none">Nic nenalezeno</div>';
+      box.classList.remove("hidden");
+      return;
+    }
+    box.innerHTML = hits.map(h=>{
+      const b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = highlight(h,q);
+      return b.outerHTML;
+    }).join("");
+    Array.from(box.children).forEach((el,i)=>{
+      el.addEventListener("mousedown", ev=>ev.preventDefault()); // don't steal focus before click
+      el.addEventListener("click", ()=>{ input.value = hits[i]; close(); input.focus(); });
+    });
+    box.classList.remove("hidden");
+  }
+  input.addEventListener("input", open);
+  input.addEventListener("focus", open);
+  input.addEventListener("blur", ()=>setTimeout(close, 120));
+}
+
+/* ---------------- číslo telefonu ---------------- */
+async function ensureDevice(){
+  if (S.deviceConfirmed) return;
+  try{
+    const res = await postToScript({secret:CONFIG.SECRET, action:"register_device"});
+    if(res && res.ok){
+      if(S.counter === 1) S.device = res.device;   // ještě nic neuloženo, bezpečné převzít
+      S.deviceConfirmed = true;
+      saveSettings();
+      refreshBar();
+      if(!$("viewSettings").classList.contains("hidden")){
+        $("sDevice").value = pad2(S.device) + (S.deviceConfirmed ? "" : " (čeká na potvrzení)");
+      }
+    }
+  }catch(e){ /* offline — zůstává dočasné číslo, zkusí se znovu */ }
+}
+
+/* ---------------- odesílání na pozadí ---------------- */
+let syncing = false;
+async function syncQueue(){
+  if(syncing || !navigator.onLine) return;
+  syncing = true;
+  try{
+    await ensureDevice();
+    const recs = (await getAll("records")).filter(r => !r.synced);
+    for(const rec of recs){
+      try{
+        const photos = [];
+        for(const name of [rec.photo1, rec.photo2, rec.photo3]){
+          if(!name) continue;
+          const ph = await getOne("photos", name);
+          if(ph && ph.blob) photos.push({name, dataUrl: await blobToDataURL(ph.blob)});
+        }
+        const res = await postToScript({secret:CONFIG.SECRET, action:"save_record", record:rec, photos});
+        if(res && res.ok){
+          rec.synced = true;
+          await put("records", rec);
+        }
+      }catch(e){ /* tenhle záznam zůstane ve frontě, zkusí se příště */ }
+    }
+  } finally {
+    syncing = false;
+    refreshBar();
+  }
+}
+
+/* ---------------- pomocné ---------------- */
+const $ = id => document.getElementById(id);
+let toastTimer;
+function toast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),1900);
+}
+const pad  = n => String(n).padStart(4,"0");
+const pad2 = n => String(n).padStart(2,"0");
+const currentCode = () => "T" + pad2(S.device) + "-" + pad(S.counter);
+function today(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function slug(s){
+  return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/['\u2018\u2019"]/g,"")
+    .replace(/[^A-Za-z0-9-]+/g,"-")
+    .replace(/-+/g,"-").replace(/^-|-$/g,"")
+    .toLowerCase().slice(0,40);
+}
+function kindSlug(v){
+  const base = isHybrid
+    ? [v.h1,v.h2,v.h3].filter(Boolean).map(slug).filter(Boolean).join("-x-")
+    : slug(v.species);
+  return [base || "neurcen", slug(v.variety)].filter(Boolean).join("-");
+}
+
+/* ---------------- zpracování fotky ---------------- */
+async function processPhoto(file){
+  const limitMb = parseFloat(S.quality);
+  if(!limitMb) return file;
+  const maxBytes = limitMb*1024*1024;
+  if(file.size <= maxBytes) return file;
+  try{
+    const bmp = await createImageBitmap(file,{imageOrientation:"from-image"});
+    const maxEdge = limitMb>=3?3200:(limitMb>=2?2600:2200);
+    const s = Math.min(1, maxEdge/Math.max(bmp.width,bmp.height));
+    const w = Math.round(bmp.width*s), h = Math.round(bmp.height*s);
+    const c = document.createElement("canvas"); c.width=w; c.height=h;
+    c.getContext("2d").drawImage(bmp,0,0,w,h);
+    let q=0.92, blob=null;
+    for(let i=0;i<6;i++){
+      blob = await new Promise(r=>c.toBlob(r,"image/jpeg",q));
+      if(blob && blob.size<=maxBytes) break;
+      q -= 0.1;
+    }
+    bmp.close && bmp.close();
+    return blob || file;
+  }catch(e){ return file; }
+}
+
+/* ---------------- rozepsaný záznam ---------------- */
+let photos = [];      // [{blob, url}]
+let activeIdx = 0;
+let isHybrid = false;
+
+function renderPhotos(){
+  const strip = $("strip");
+  if(!photos.length){
+    $("shotImg").classList.add("hidden"); $("shotImg").removeAttribute("src");
+    $("shotEmpty").classList.remove("hidden");
+    strip.classList.add("hidden"); strip.innerHTML="";
+    return;
+  }
+  $("shotEmpty").classList.add("hidden");
+  $("shotImg").classList.remove("hidden");
+  if(activeIdx >= photos.length) activeIdx = photos.length-1;
+  $("shotImg").src = photos[activeIdx].url;
+
+  strip.classList.remove("hidden");
+  strip.innerHTML = "";
+  photos.forEach((p,i)=>{
+    const b=document.createElement("button");
+    b.className="tile"+(i===activeIdx?" active":"");
+    b.type="button";
+    b.innerHTML='<img alt="" src="'+p.url+'"><span class="x">×</span>';
+    b.querySelector("img").addEventListener("click",ev=>{ev.stopPropagation();activeIdx=i;renderPhotos();});
+    b.querySelector(".x").addEventListener("click",ev=>{
+      ev.stopPropagation(); URL.revokeObjectURL(p.url);
+      photos.splice(i,1); if(activeIdx>0) activeIdx--; renderPhotos();
+    });
+    strip.appendChild(b);
+  });
+  if(photos.length < MAX_PHOTOS){
+    const a=document.createElement("button");
+    a.className="tile add"; a.type="button"; a.textContent="+";
+    a.setAttribute("aria-label","Přidat další fotku");
+    a.addEventListener("click",()=>$("fileInput").click());
+    strip.appendChild(a);
+  }
+}
+function clearPhotos(){
+  photos.forEach(p=>URL.revokeObjectURL(p.url));
+  photos = []; activeIdx = 0; renderPhotos();
+}
+
+/* ---------------- formulář ---------------- */
+function setKind(hybrid){
+  isHybrid = hybrid;
+  $("segSpecies").classList.toggle("on",!hybrid);
+  $("segHybrid").classList.toggle("on",hybrid);
+  $("speciesCell").classList.toggle("hidden",hybrid);
+  $("kindPair").classList.toggle("solo",hybrid);
+  $("hybridRow").classList.toggle("hidden",!hybrid);
+  if(hybrid){ $("fSpecies").value=""; }
+  else { $("fH1").value=$("fH2").value=$("fH3").value=""; }
+}
+function readForm(){
+  return {
+    genus:$("fGenus").value.trim(), species:$("fSpecies").value.trim(),
+    variety:$("fVariety").value.trim(),
+    h1:$("fH1").value.trim(), h2:$("fH2").value.trim(), h3:$("fH3").value.trim(),
+    price:$("fPrice").value.trim().replace(",","."), count:$("fCount").value.trim(),
+    country:$("fCountry").value.trim(), info:$("fInfo").value.trim(),
+    flower:$("fFlower").checked
+  };
+}
+function resetForm(){
+  $("fGenus").value=S.genus; $("fSpecies").value=""; $("fVariety").value="";
+  $("fH1").value=""; $("fH2").value=""; $("fH3").value="";
+  $("fPrice").value=""; $("fCount").value="1"; $("fCountry").value=S.country; $("fInfo").value="";
+  $("fFlower").checked=false;
+  setKind(false);
+}
+function formHasData(){
+  const v=readForm();
+  return !!(v.species||v.variety||v.h1||v.h2||v.h3||v.price||v.info) || photos.length>0;
+}
+
+/* ---------------- ukládání ---------------- */
+async function saveRecord(){
+  if(!photos.length){ toast("Nejdřív vyfoť rostlinu"); return; }
+  if(!S.photographer){ toast("Doplň jméno fotografa v nastavení"); showView("settings"); return; }
+
+  const v = readForm();
+  const code = currentCode();
+  const base = code+"__"+kindSlug(v)+"__"+today();
+  const names = photos.map((p,i)=>base+"__"+String(i+1).padStart(2,"0")+".jpg");
+
+  const rec = {
+    id:code, photo1:names[0]||"", photo2:names[1]||"", photo3:names[2]||"",
+    genus:v.genus, species:isHybrid?"":v.species, variety:v.variety,
+    hybrid1:isHybrid?v.h1:"", hybrid2:isHybrid?v.h2:"", hybrid3:isHybrid?v.h3:"",
+    price:v.price, count:v.count, country:v.country, info:v.info,
+    flower:v.flower?"ano":"ne",
+    photographer:S.photographer, mode:S.mode,
+    createdAt:new Date().toISOString(), synced:false
+  };
+
+  try{
+    for(let i=0;i<photos.length;i++) await put("photos",{name:names[i],blob:photos[i].blob});
+    await put("records",rec);
+  }catch(e){ toast("Uložení selhalo, zkontroluj místo v telefonu"); return; }
+
+  S.counter += 1; saveSettings();
+  clearPhotos(); resetForm(); refreshBar();
+  toast("Uloženo "+code);
+  syncQueue();
+  setTimeout(()=>$("fileInput").click(),260);
+}
+
+/* ---------------- pohledy ---------------- */
+function showView(name){
+  $("viewCapture").classList.toggle("hidden",name!=="capture");
+  $("viewList").classList.toggle("hidden",name!=="list");
+  $("viewSettings").classList.toggle("hidden",name!=="settings");
+  $("actionBar").classList.toggle("hidden",name!=="capture");
+  if(name==="list") renderList();
+  if(name==="settings") renderStorage();
+  window.scrollTo(0,0);
+}
+async function refreshBar(){
+  $("nextCode").textContent = currentCode();
+  const recs = await getAll("records");
+  const ks = recs.reduce((a,r)=>a+(parseInt(r.count,10)||0),0);
+  const pill = $("countPill");
+  pill.textContent = recs.length+" záznamů · "+ks+" ks";
+  pill.classList.toggle("queued",recs.length>0);
+
+  const unsynced = recs.filter(r=>!r.synced).length;
+  const sp = $("syncPill");
+  if(unsynced>0){
+    sp.textContent = unsynced+" k odeslání";
+    sp.classList.remove("hidden");
+  }else{
+    sp.classList.add("hidden");
+  }
+}
+let listURLs = [];
+async function renderList(){
+  listURLs.forEach(u=>URL.revokeObjectURL(u)); listURLs=[];
+  const box=$("recList");
+  const recs=(await getAll("records")).sort((a,b)=>a.id<b.id?1:-1);
+  if(!recs.length){ box.innerHTML='<div class="empty">Zatím nic. Vyfoť první rostlinu.</div>'; return; }
+  box.innerHTML="";
+  for(const r of recs.slice(0,120)){
+    const ph=await getOne("photos",r.photo1);
+    const el=document.createElement("div"); el.className="rec";
+    let src=""; if(ph&&ph.blob){ src=URL.createObjectURL(ph.blob); listURLs.push(src); }
+    const nm = r.hybrid1
+      ? [r.hybrid1,r.hybrid2,r.hybrid3].filter(Boolean).join(" × ")
+      : [r.genus,r.species,r.variety].filter(Boolean).join(" ");
+    const extra = (r.photo3?" · 3 fotky":(r.photo2?" · 2 fotky":"")) + (r.flower==="ano"?" · květ":"");
+    el.innerHTML='<img alt="" src="'+src+'"><div><div class="name"></div>'+
+      '<div class="meta">'+r.id+(r.price?" · "+r.price:"")+extra+'</div></div>'+
+      '<div class="qty">'+(r.count||"")+' ks</div>';
+    el.querySelector(".name").textContent = nm || "(bez názvu)";
+    box.appendChild(el);
+  }
+}
+async function renderStorage(){
+  try{
+    const est=await navigator.storage.estimate();
+    const mb=x=>(x/1048576).toFixed(0);
+    $("storageNote").textContent="Zabráno v telefonu: "+mb(est.usage||0)+" MB z dostupných "+mb(est.quota||0)+" MB.";
+  }catch(e){ $("storageNote").textContent=""; }
+}
+
+/* ---------------- CSV ---------------- */
+const csvCell = s => { s=(s==null?"":String(s)); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+async function copyCsv(){
+  const recs=(await getAll("records")).sort((a,b)=>a.id<b.id?-1:1);
+  if(!recs.length){ toast("Není co kopírovat"); return; }
+  const head=["ID","Fotka 1","Fotka 2","Fotka 3","Rod","Druh","Varieta","Hybrid 1","Hybrid 2","Hybrid 3","Cena/ks","Počet ks","Země","Květ","Info","Fotograf","Účel","Zapsáno"];
+  const rows=recs.map(r=>[r.id,r.photo1,r.photo2,r.photo3,r.genus,r.species,r.variety,r.hybrid1,r.hybrid2,r.hybrid3,r.price,r.count,r.country,r.flower||"ne",r.info,r.photographer,r.mode,r.createdAt]);
+  const csv=[head,...rows].map(r=>r.map(csvCell).join(";")).join("\n");
+  try{ await navigator.clipboard.writeText(csv); toast("Zkopírováno, vlož do tabulky"); }
+  catch(e){ toast("Schránka není dostupná"); }
+}
+
+/* ---------------- start ---------------- */
+function fillDatalists(){
+  $("dlGenus").innerHTML   = GENERA.map(s=>'<option value="'+s+'">').join("");
+  $("dlCountry").innerHTML = COUNTRIES.map(s=>'<option value="'+s+'">').join("");
+}
+function bindSettings(){
+  [["sPhotographer","photographer"],["sMode","mode"],["sGenus","genus"],
+   ["sCountry","country"],["sQuality","quality"]].forEach(([id,key])=>{
+    $(id).value = S[key];
+    $(id).addEventListener("change",()=>{
+      S[key]=$(id).value.trim();
+      saveSettings(); refreshBar();
+    });
+  });
+  $("sDevice").value = pad2(S.device) + (S.deviceConfirmed ? "" : " (čeká na potvrzení)");
+}
+async function init(){
+  loadSettings();
+  if(!S.device){ S.device = 1 + Math.floor(Math.random()*99); saveSettings(); }
+  fillDatalists();
+  try{ db = await openDB(); }
+  catch(e){ toast("Úložiště prohlížeče není dostupné"); return; }
+
+  bindSettings(); resetForm(); refreshBar();
+  ["fSpecies","fH1","fH2","fH3"].forEach(attachSpeciesSearch);
+
+  if(navigator.storage && navigator.storage.persist){
+    navigator.storage.persist().catch(()=>{});
+  }
+  $("fGenus").addEventListener("click",()=>{ showView("settings"); $("sGenus").focus(); });
+
+  ensureDevice();
+  syncQueue();
+  window.addEventListener("online", syncQueue);
+  setInterval(syncQueue, 25000);
+
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  }
+
+  $("shotBtn").addEventListener("click",()=>{
+    if(photos.length >= MAX_PHOTOS){ toast("Víc než "+MAX_PHOTOS+" fotky na záznam nejdou"); return; }
+    $("fileInput").click();
+  });
+  $("fileInput").addEventListener("change", async e=>{
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if(!f) return;
+    if(photos.length >= MAX_PHOTOS) return;
+    toast("Zpracovávám fotku…");
+    const blob = await processPhoto(f);
+    photos.push({blob, url:URL.createObjectURL(blob)});
+    activeIdx = photos.length-1;
+    renderPhotos();
+    if(photos.length===1 && !$("fSpecies").value) $("fSpecies").focus();
+  });
+
+  $("segSpecies").addEventListener("click",()=>setKind(false));
+  $("segHybrid").addEventListener("click",()=>setKind(true));
+  $("btnSave").addEventListener("click",saveRecord);
+  $("btnDiscard").addEventListener("click",()=>{
+    if(!formHasData()){ toast("Není co mazat"); return; }
+    if(photos.length && !confirm("Zahodit rozepsaný záznam včetně fotek?")) return;
+    clearPhotos(); resetForm(); toast("Zahozeno");
+  });
+  $("btnList").addEventListener("click",()=>showView($("viewList").classList.contains("hidden")?"list":"capture"));
+  $("btnSettings").addEventListener("click",()=>showView($("viewSettings").classList.contains("hidden")?"settings":"capture"));
+  $("btnCopyCsv").addEventListener("click",copyCsv);
+  $("btnWipe").addEventListener("click", async ()=>{
+    if(!confirm("Opravdu smazat všechny záznamy i fotky z tohoto telefonu?")) return;
+    await clearStore("records"); await clearStore("photos");
+    S.counter=1; saveSettings();
+    refreshBar(); renderList(); renderStorage(); toast("Smazáno");
+  });
+
+  if(!S.photographer) showView("settings");
+}
+init();
+</script>
+</body>
+</html>
