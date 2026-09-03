@@ -388,20 +388,26 @@ function attachSpeciesSearch(inputId){
 }
 
 /* ---------------- číslo telefonu ---------------- */
-async function ensureDevice(){
-  if (S.deviceConfirmed) return;
-  try{
-    const res = await postToScript({secret:CONFIG.SECRET, action:"register_device"});
-    if(res && res.ok){
-      if(S.counter === 1) S.device = res.device;   // ještě nic neuloženo, bezpečné převzít
-      S.deviceConfirmed = true;
-      saveSettings();
-      refreshBar();
-      if(!$("viewSettings").classList.contains("hidden")){
-        $("sDevice").value = pad2(S.device) + (S.deviceConfirmed ? "" : " (čeká na potvrzení)");
+let deviceRegisterPromise = null;
+function ensureDevice(){
+  if (S.deviceConfirmed) return Promise.resolve();
+  if (deviceRegisterPromise) return deviceRegisterPromise;   // už běží, nespouštět druhou žádost
+  deviceRegisterPromise = (async () => {
+    try{
+      const res = await postToScript({secret:CONFIG.SECRET, action:"register_device"});
+      if(res && res.ok){
+        if(S.counter === 1) S.device = res.device;   // ještě nic neuloženo, bezpečné převzít
+        S.deviceConfirmed = true;
+        saveSettings();
+        refreshBar();
+        if(!$("viewSettings").classList.contains("hidden")){
+          $("sDevice").value = pad2(S.device) + (S.deviceConfirmed ? "" : " (čeká na potvrzení)");
+        }
       }
-    }
-  }catch(e){ /* offline — zůstává dočasné číslo, zkusí se znovu */ }
+    }catch(e){ /* offline — zůstává dočasné číslo, zkusí se znovu */ }
+    finally{ deviceRegisterPromise = null; }
+  })();
+  return deviceRegisterPromise;
 }
 
 /* ---------------- odesílání na pozadí ---------------- */
@@ -695,7 +701,7 @@ async function init(){
   }
   $("fGenus").addEventListener("click",()=>{ showView("settings"); $("sGenus").focus(); });
 
-  ensureDevice();
+  await ensureDevice();
   syncQueue();
   window.addEventListener("online", syncQueue);
   setInterval(syncQueue, 25000);
