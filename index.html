@@ -390,6 +390,7 @@ function attachSpeciesSearch(inputId){
 /* ---------------- číslo telefonu ---------------- */
 let deviceRegisterPromise = null;
 function ensureDevice(){
+  loadSettings();   // nejdřív zjistit, jestli číslo mezitím nepotvrdila jiná otevřená karta / okno appky
   if (S.deviceConfirmed) return Promise.resolve();
   if (deviceRegisterPromise) return deviceRegisterPromise;   // už běží, nespouštět druhou žádost
   deviceRegisterPromise = (async () => {
@@ -416,8 +417,9 @@ async function syncQueue(){
   if(syncing || !navigator.onLine) return;
   syncing = true;
   try{
-    await ensureDevice();
     const recs = (await getAll("records")).filter(r => !r.synced);
+    if(!recs.length) return;         // nic k odeslání — netahat server zbytečně
+    await ensureDevice();
     for(const rec of recs){
       try{
         const photos = [];
@@ -574,6 +576,7 @@ async function saveRecord(){
   if(!photos.length){ toast("Nejdřív vyfoť rostlinu"); return; }
   if(!S.photographer){ toast("Doplň jméno fotografa v nastavení"); showView("settings"); return; }
 
+  if(navigator.onLine) await ensureDevice();   // první uložení: zkusit potvrdit číslo, než se vytvoří ID
   const v = readForm();
   const code = currentCode();
   const base = code+"__"+kindSlug(v)+"__"+today();
@@ -701,10 +704,12 @@ async function init(){
   }
   $("fGenus").addEventListener("click",()=>{ showView("settings"); $("sGenus").focus(); });
 
-  await ensureDevice();
-  syncQueue();
+  syncQueue();   // dožene jen dřív rozdělané, neodeslané záznamy; číslo telefonu se řeší až při ukládání
   window.addEventListener("online", syncQueue);
-  setInterval(syncQueue, 25000);
+  document.addEventListener("visibilitychange", ()=>{
+    if(!document.hidden) syncQueue();
+  });
+  setInterval(()=>{ if(!document.hidden) syncQueue(); }, 25000);
 
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("./sw.js").catch(()=>{});
