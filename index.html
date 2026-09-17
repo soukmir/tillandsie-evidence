@@ -413,11 +413,22 @@ function ensureDevice(){
 
 /* ---------------- odesílání na pozadí ---------------- */
 let syncing = false;
-async function syncQueue(){
-  if(syncing || !navigator.onLine) return;
+const RESEND_COOLDOWN_MS = 120000;   // záznam odeslaný před méně než 2 min se znovu neposílá (odpověď mohla jen nedorazit)
+function syncQueue(){
+  if(syncing || !navigator.onLine) return Promise.resolve();
+  // Web Locks: jen jedna karta / okno appky smí odesílat najednou
+  if(navigator.locks && navigator.locks.request){
+    return navigator.locks.request("tilandsie-sync", {ifAvailable:true}, lock => lock ? runSync() : null);
+  }
+  return runSync();
+}
+async function runSync(){
+  if(syncing) return;
   syncing = true;
   try{
-    const recs = (await getAll("records")).filter(r => !r.synced);
+    const now = Date.now();
+    const recs = (await getAll("records"))
+      .filter(r => !r.synced && !(r.sentAt && now - r.sentAt < RESEND_COOLDOWN_MS));
     if(!recs.length) return;         // nic k odeslání — netahat server zbytečně
     await ensureDevice();
     for(const rec of recs){
@@ -428,12 +439,14 @@ async function syncQueue(){
           const ph = await getOne("photos", name);
           if(ph && ph.blob) photos.push({name, dataUrl: await blobToDataURL(ph.blob)});
         }
+        rec.sentAt = Date.now();     // poznamenat PŘED odesláním — přežije i zavření/uspání appky
+        await put("records", rec);
         const res = await postToScript({secret:CONFIG.SECRET, action:"save_record", record:rec, photos});
         if(res && res.ok){
           rec.synced = true;
           await put("records", rec);
         }
-      }catch(e){ /* tenhle záznam zůstane ve frontě, zkusí se příště */ }
+      }catch(e){ /* tenhle záznam zůstane ve frontě, zkusí se po uplynutí pauzy */ }
     }
   } finally {
     syncing = false;
