@@ -4,7 +4,7 @@
    tohle jen zajišťuje, že se appka má z čeho spustit.
    Zvyš CACHE_NAME při každé nové verzi appky, ať se stažení obnoví.
 */
-const CACHE_NAME = "tilandsie-shell-v4";
+const CACHE_NAME = "tilandsie-shell-v5";
 const SHELL_FILES = [
   "./",
   "./index.html",
